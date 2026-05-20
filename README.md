@@ -486,7 +486,16 @@ Modellen eksponeres på `http://localhost:11434`.
 
 ```bash
 ./mvnw spring-boot:run
+
 ```
+
+Aktiver profil i IntelliJ:
+
+```
+Run Configuration → Environment variables → SPRING_PROFILES_ACTIVE=local
+```
+
+`application-local.yml` skal ikke committes til Git (ligger i `.gitignore`)
 
 API tilgjengelig på `http://localhost:8080`  
 Swagger UI på `http://localhost:8080/swagger-ui.html`

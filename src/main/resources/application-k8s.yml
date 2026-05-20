@@ -1,0 +1,34 @@
+server:
+  forward-headers-strategy: native
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres-service:5432/logdb
+    username: postgres
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  kafka:
+    bootstrap-servers: kafka-service:9092
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+
+ollama:
+  base-url: http://ollama:11434
+
+jwt:
+  secret: ${JWT_SECRET}
+
+app:
+  frontend-url: http://localhost:3000
+  backend-url: http://logsense-ai-backend-service:8080

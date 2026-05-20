@@ -40,3 +40,6 @@ build/
 ### ENV ###
 .env
 *.env
+
+### Spring ###
+**/application-local.yml

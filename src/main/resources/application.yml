@@ -1,0 +1,38 @@
+spring:
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: Europe/Oslo
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            scope: openid,email,profile
+
+kafka:
+  topic:
+    log: log-topic
+  consumer:
+    group-id: log-group
+
+ollama:
+  model: llama3.2
+
+jwt:
+  expiration: 86400000
+
+app:
+  version: 1.0.0
