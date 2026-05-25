@@ -48,11 +48,12 @@ public class PayrollLogConsumer {
             return;
         }
 
-        String message = event.getLevel();
-        String source = event.getMessage();
+        String level = event.getLevel();
+        String message = event.getMessage();
+        String source = event.getSource();
         String employeeId = event.getEmployeeId();
 
-        if ("INFO".equalsIgnoreCase(message)) return;
+        if ("INFO".equalsIgnoreCase(level)) return;
 
         String formatted = "[PAYROLL] source=%s employeeId=%s timestamp=%s message=%s".formatted(
                 source, employeeId, event.getTimestamp(), message

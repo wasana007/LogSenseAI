@@ -8,6 +8,9 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  elasticsearch:
+    uris: http://elasticsearch-service:9200
+
   kafka:
     bootstrap-servers: kafka-service:9092
 

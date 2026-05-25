@@ -3,7 +3,7 @@
 ---
 > Hendelsesdrevet full-stack system for sanntids loggprosessering og automatisk feildiagnostikk med AI-støtte, der
 > Apache Kafka fungerer som kjernen i hendelsesflyten. Systemet er bygget med Java 21, Spring Boot 3, Kafka, React,
-> PostgreSQL og integrasjon mot Ollama LLM.
+> PostgreSQL, Elasticsearch og integrasjon mot Ollama LLM.
 > En hendelsesdrevet plattform der Kafka håndterer all asynkron meldingsflyt mellom API, AI-agent og datalagring.
 > Systemet er utviklet for å hjelpe utviklere og QA-team med raskere feilsøking ved å sentralisere og analysere
 > applikasjonslogger i sanntid.
@@ -32,6 +32,7 @@ Designprioriteter:
 - Sikkerhet gjennom Spring Security OAuth2 Login med egengenerert JWT
 - Interaktiv React-frontend med sanntids statusoppdatering via WebSocket
 - Strukturert datalagring og observabilitet gjennom PostgreSQL
+- Elasticsearch-basert loggsøk med keyword- og statusfilter
 
 ---
 
@@ -63,6 +64,7 @@ AI-agentlag
         │
         ▼
 LogStorageService  →  PostgreSQL (status: PENDING → COMPLETED / FAILED)
+                   →  Elasticsearch (indeksering for søk)
         │
         ▲
         │  WebSocket /topic/logs  (push fra backend til React)
@@ -256,6 +258,7 @@ Denne integrasjonen gir:
 | Meldingssystem    | Kafka + Zookeeper              |
 | AI / LLM          | Ollama — llama3.2              |
 | Database          | PostgreSQL + Spring Data JPA   |
+| Søk               | Elasticsearch 8                |
 | Autentisering     | OAuth2 Login  + egen JWT       |
 | API-dokumentasjon | Swagger UI                     |
 | Infrastruktur     | Docker + Docker Compose        |
@@ -320,7 +323,8 @@ PENDING → COMPLETED
 ### Datapersistens
 
 Alle loggoppføringer lagres strukturert i PostgreSQL med `correlationId`, `status`, `createdAt` og `completedAt` — noe
-som muliggjør historisk søk og nedstrømsanalyse.
+som muliggjør historisk søk og nedstrømsanalyse. Fullførte logger indekseres i tillegg i Elasticsearch for rask
+fulltekstsøk.
 
 ---
 
@@ -345,7 +349,7 @@ som muliggjør historisk søk og nedstrømsanalyse.
 16. AgentService spør Ollama LLM: hvilket verktøy skal brukes?
 17. LLM returnerer {"tool": "DB_ANALYZE"} (eller tilsvarende)
 18. ToolRouter ruter til riktig verktøy (DbTool / KafkaTool / OllamaTool)
-19. Resultat lagres i PostgreSQL med status COMPLETED
+19. Resultat lagres i PostgreSQL og indekseres i Elasticsearch med status COMPLETED
 20. Backend pusher COMPLETED via WebSocket → React viser resultatet
 ```
 
@@ -374,6 +378,18 @@ ERROR: database connection timeout after 30s
   "correlationId": "550e8400-e29b-41d4-a716-446655440000",
   "status": "PENDING"
 }
+```
+
+---
+
+### Søk i logger (Elasticsearch)
+
+```http
+GET /api/v1/logs/search?q=timeout
+Authorization: Bearer <token>
+
+GET /api/v1/logs/search/status/FAILED
+Authorization: Bearer <token>
 ```
 
 ---
@@ -425,17 +441,19 @@ backend/
 │   ├── SwaggerConfig.java         # OpenAPI / Swagger UI
 │   └── WebSocketConfig.java       # Konfigurerer WebSocket/STOMP for sanntidsoppdateringer
 ├── controller/
-│   ├── LogController.java         # POST (async) + GET /{correlationId}
+│   ├── LogController.java         # POST (async) + GET /search + GET /search/status
 │   └── MeController.java          # GET /api/v1/me → brukerens e-post
 ├── model/
 │   ├── LogEntry.java              # correlationId, status, message, result, timestamps
+│   ├── LogDocument.java           # Elasticsearch-dokument for indeksering
 │   └── LogStatus.java             # Enum (PENDING, COMPLETED, FAILED)
 ├── repository/
-│   └── LogRepository.java         # JPA repository for LogEntry (findByCorrelationId)
+│   ├── LogRepository.java         # JPA repository for LogEntry (findByCorrelationId)
+│   └── LogSearchRepository.java   # Elasticsearch repository for søk
 ├── service/
 │   ├── LogConsumerService.java    # Kafka-lytter → kaller AgentService
 │   ├── LogNotificationService.java# WebSocket broadcasting av loggstatus til frontend
-│   ├── LogStorageService.java     # Håndterer persistens
+│   ├── LogStorageService.java     # Håndterer persistens i PostgreSQL og Elasticsearch
 │   ├── OllamaClient.java          # HTTP-klient mot Ollama LLM API
 │   └── PayrollLogConsumer.java    # Konsumerer payroll-log-events og trigger AI pipeline
 └── tools/
@@ -445,7 +463,7 @@ backend/
 
 frontend/
 └── src/
-    ├── App.jsx                    # OAuth2 popup-flyt + WebSocket-basert dashboard
+    ├── App.jsx                    # OAuth2 popup-flyt + WebSocket-basert dashboard + Elasticsearch-søk
     ├── LoginSuccess.jsx           # Håndterer token fra OAuth2-redirect
     ├── index.js                   # Inngangspunkt
     ├── config.js                  # Alle konfigurasjonskonstanter
@@ -472,7 +490,7 @@ frontend/
 docker-compose up -d
 ```
 
-Starter PostgreSQL, Kafka og Zookeeper.
+Starter PostgreSQL, Kafka, Zookeeper og Elasticsearch.
 
 ### 2. Start lokal LLM
 
@@ -523,6 +541,7 @@ React-appen tilgjengelig på `http://localhost:3000`
 - OAuth2 Login + egengenerert JWT for stateless API-autentisering
 - Popup-basert innloggingsflyt i React uten sideomlasting
 - Sanntids logg-dashboard via WebSocket (STOMP + SockJS)
+- Elasticsearch-integrasjon for historisk loggsøk og filtrering
 - Ren lagdelt arkitektur med tydelig separasjon av ansvar
 - Containerisert infrastruktur med Docker Compose
 - RESTful API med OpenAPI/Swagger-dokumentasjon
@@ -531,6 +550,7 @@ React-appen tilgjengelig på `http://localhost:3000`
 
 ## Veikart
 
+- [x] Elasticsearch-integrasjon for loggsøk
 - [ ] Flerstegs AI-resonnering (chain-of-thought agent)
 - [ ] Minnelag for kontekstbevisst loggkorrelasjon
 - [ ] Observabilitetsdashbord (React UI med historikk)
@@ -544,4 +564,4 @@ React-appen tilgjengelig på `http://localhost:3000`
 ## Om
 
 Utviklet som et læringsprosjekt innen full-stack arkitektur og AI-integrasjon, med fokus på Java, Spring Boot, Kafka,
-hendelsesdrevet design, LLM-agentmønstre og React-frontend i produksjonslignende systemer.
+hendelsesdrevet design, LLM-agentmønstre, Elasticsearch og React-frontend i produksjonslignende systemer.

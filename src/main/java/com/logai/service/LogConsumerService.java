@@ -34,6 +34,11 @@ public class LogConsumerService {
         String correlationId = consumerRecord.key();
         String logMessage = consumerRecord.value();
 
+        if (correlationId == null) {
+            log.warn("Mottatt melding uten correlationId — ignorerer");
+            return;
+        }
+
         log.info("Mottatt | correlationId={}", correlationId);
 
         try {
