@@ -1,6 +1,10 @@
 package com.logai.agent;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logai.exception.LogsenseAISerializationException;
+import com.logai.exception.LogsenseAIToolResolutionException;
 import com.logai.service.OllamaClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,14 +16,15 @@ import java.util.Map;
 public class AgentService {
 
     private static final Logger log = LoggerFactory.getLogger(AgentService.class);
-
+    private static final String OLLAMA_ANALYZE = "OLLAMA_ANALYZE";
     private final ToolRouter toolRouter;
     private final OllamaClient ollamaClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public AgentService(ToolRouter toolRouter, OllamaClient ollamaClient) {
+    public AgentService(ToolRouter toolRouter, OllamaClient ollamaClient, ObjectMapper objectMapper) {
         this.toolRouter = toolRouter;
         this.ollamaClient = ollamaClient;
+        this.objectMapper = objectMapper;
     }
 
     public String handle(String logMessage) {
@@ -29,7 +34,24 @@ public class AgentService {
     }
 
     private String decide(String logMessage) {
-        String prompt = """
+        String raw;
+        try {
+            raw = ollamaClient.generate(buildPrompt(logMessage));
+            return resolveTool(raw);
+        } catch (LogsenseAISerializationException e) {
+            log.error("Kunne ikke ekstrahere JSON fra LLM-respons: {} → bruker OLLAMA_ANALYZE", e.getMessage());
+            return OLLAMA_ANALYZE;
+        } catch (JsonProcessingException e) {
+            log.error("Kunne ikke parse JSON fra LLM-respons: {} → bruker OLLAMA_ANALYZE", e.getMessage());
+            return OLLAMA_ANALYZE;
+        } catch (LogsenseAIToolResolutionException e) {
+            log.error("Ugyldig verktøynavn fra LLM: {} → bruker OLLAMA_ANALYZE", e.getMessage());
+            return OLLAMA_ANALYZE;
+        }
+    }
+
+    private String buildPrompt(String logMessage) {
+        return """
                 Du er en AI-agent som velger riktig analyseverktøy for en loggmelding.
                 
                 Tilgjengelige verktøy:
@@ -43,32 +65,35 @@ public class AgentService {
                 Logg som skal analyseres:
                 %s
                 """.formatted(logMessage);
+    }
 
-        try {
-            String raw = ollamaClient.generate(prompt);
-            String cleaned = extractJson(raw);
-            Map<?, ?> parsed = objectMapper.readValue(cleaned, Map.class);
-            String tool = parsed.get("tool").toString().trim().toUpperCase();
-
-            return switch (tool) {
-                case "DB_ANALYZE", "KAFKA_ANALYZE", "OLLAMA_ANALYZE" -> tool;
-                default -> {
-                    log.warn("Ukjent verktøy fra LLM: {} → bruker OLLAMA_ANALYZE", tool);
-                    yield "OLLAMA_ANALYZE";
+    private String resolveTool(String raw) throws JsonProcessingException {
+        String cleaned = extractJson(raw);
+        Map<String, String> parsed = objectMapper.readValue(cleaned, new TypeReference<>() {
                 }
-            };
+        );
 
-        } catch (Exception e) {
-            log.error("Kunne ikke tolke LLM-beslutning: {} → bruker OLLAMA_ANALYZE", e.getMessage());
-            return "OLLAMA_ANALYZE";
+        String toolValue = parsed.get("tool");
+        if (toolValue == null) {
+            throw new LogsenseAIToolResolutionException("Manglende 'tool'-felt i LLM-respons: " + raw);
         }
+
+        return normalizeToolName(toolValue);
+    }
+
+    private String normalizeToolName(String toolValue) {
+        String tool = toolValue.trim().toUpperCase();
+        return switch (tool) {
+            case "DB_ANALYZE", "KAFKA_ANALYZE", OLLAMA_ANALYZE -> tool;
+            default -> throw new LogsenseAIToolResolutionException("Ukjent verktøy fra LLM: " + tool);
+        };
     }
 
     private String extractJson(String raw) {
         int start = raw.indexOf('{');
         int end = raw.lastIndexOf('}');
         if (start == -1 || end == -1 || end < start) {
-            throw new RuntimeException("Ingen JSON funnet i LLM-respons: " + raw);
+            throw new LogsenseAISerializationException("Ingen JSON funnet i LLM-respons: " + raw);
         }
         return raw.substring(start, end + 1);
     }

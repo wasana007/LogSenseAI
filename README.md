@@ -23,6 +23,7 @@
 ### 🎬 Dashboard for loggovervåking - Klikk på bildet nedenfor for å se hele demoen på YouTube ▶️
 
 [![Watch Demo](docs/images/logsenseai.jpg)](https://www.youtube.com/watch?v=MTGsfn9Y7eY&list=PLOwWtF7kBLb8EYRrO9Z94Oalhewrdnwmj)
+NB! Stemmen i videoen er generert med AI-basert tekst-til-tale-teknologi.
 
 Designprioriteter:
 
