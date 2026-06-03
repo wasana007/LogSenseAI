@@ -255,7 +255,7 @@ Denne integrasjonen gir:
 |-------------------|--------------------------------|
 | Språk             | Java 21                        |
 | Backend-rammeverk | Spring Boot 3, Spring Security |
-| Frontend          | React                          |
+| Frontend          | React + Vite                   |
 | Meldingssystem    | Kafka + Zookeeper              |
 | AI / LLM          | Ollama — llama3.2              |
 | Database          | PostgreSQL + Spring Data JPA   |
@@ -464,16 +464,21 @@ backend/
 
 frontend/
 └── src/
-    ├── App.jsx                    # OAuth2 popup-flyt + WebSocket-basert dashboard + Elasticsearch-søk
-    ├── LoginSuccess.jsx           # Håndterer token fra OAuth2-redirect
-    ├── index.js                   # Inngangspunkt
-    ├── config.js                  # Alle konfigurasjonskonstanter
-    └── hooks/
-        ├── useLogApi.js           # POST logg + håndterer PENDING-status
-        └── usePayrollLog.js       # WebSocket-tilkobling + live event-tabell
+    ├── main.tsx                       # Inngangspunkt
+    ├── App.tsx                        # Router-oppsett, auth-logikk, global state
+    ├── App.css                        # Styling  
+    ├── LoginSuccess.tsx               # Håndterer token fra OAuth2-redirect
+    ├── config.ts                      # Alle konfigurasjonskonstanter
+    ├── hooks/
+    │   ├── useLogApi.ts               # POST logg + håndterer PENDING-status
+    │   └── usePayrollLog.ts           # WebSocket-tilkobling + live event-tabell
+    ├── utils/
+    │   └── formatDate.ts              # Formaterer ISO-datostreng til norsk datoformat
+    └── pages/
+        ├── LoginPage.tsx              # Google OAuth2-innlogging
+        ├── DashboardPage.tsx          # Logganalyse + live events
+        └── LogsPage.tsx               # Elasticsearch-søk
 ```
-
----
 
 ## Kom i gang
 
@@ -524,7 +529,7 @@ Swagger UI på `http://localhost:8080/swagger-ui.html`
 ```bash
 cd frontend
 npm install
-npm start
+npm run dev
 ```
 
 React-appen tilgjengelig på `http://localhost:3000`
@@ -554,10 +559,12 @@ React-appen tilgjengelig på `http://localhost:3000`
 - [x] Elasticsearch-integrasjon for loggsøk
 - [ ] Flerstegs AI-resonnering (chain-of-thought agent)
 - [ ] Minnelag for kontekstbevisst loggkorrelasjon
-- [ ] Observabilitetsdashbord (React UI med historikk)
+- [x] Observabilitetsdashbord (React UI med historikk og Elasticsearch-søk)
 - [ ] Resilience4j (retry + circuit breaker for Ollama-kall)
 - [ ] Distribuert sporing (OpenTelemetry + Jaeger)
-- [ ] Unit- og integrasjonstester (JUnit 5 + Testcontainers)
+- [x] Unit-tester (JUnit 5 + Mockito)
+- [x] Integrasjonstester (JUnit 5 + @DataJpaTest)
+- [ ] Integrasjonstester med ekte database (Testcontainers)
 - [ ] Prometheus-metrikker for Kafka og agent-ytelse
 
 ---
