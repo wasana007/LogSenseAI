@@ -89,7 +89,10 @@ public class SecurityConfig {
                         "/v3/api-docs/**",
                         "/swagger-ui.html",
                         "/ws/**",
-                        "/ws/info/**"
+                        "/ws/info/**",
+                        "/api/v1/logs/search",
+                        "/api/v1/logs/search/**",
+                        "/api/v1/logs/*"
                 ).permitAll()
                 .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated();

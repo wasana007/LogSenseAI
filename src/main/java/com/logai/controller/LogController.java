@@ -66,4 +66,11 @@ public class LogController {
     public ResponseEntity<List<LogDocument>> searchBySource(@PathVariable String source) {
         return ResponseEntity.ok(logSearchRepository.findBySource(source));
     }
+
+    @GetMapping("/{correlationId}")
+    public ResponseEntity<LogDocument> getByCorrelationId(@PathVariable String correlationId) {
+        return logSearchRepository.findByCorrelationId(correlationId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
